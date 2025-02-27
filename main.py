@@ -31,6 +31,6 @@ import threading
 
 t = threading.Thread(target = thread_func)
 t.start()
-# Headless mode runs Coppelia without the GUI
+# No GUI
 simRunGui(sim_gui_headless)
 t.join()
