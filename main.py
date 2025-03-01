@@ -1,4 +1,5 @@
 import argparse
+from time import sleep
 
 def sim_thread():
     from coppeliasim.lib import (appDir, simInitialize, simLoop, 
@@ -8,12 +9,26 @@ def sim_thread():
     
     simInitialize(appDir().encode('utf-8'), 0)    
     
+    def step():
+        # Steps through the simulation once
+        if sim.getSimulationState() != sim.simulation_stopped:
+            t = sim.getSimulationTime()
+            while t == sim.getSimulationTime():
+                simLoop(None, 0)    
+    
     try:
-
         coppeliasim.bridge.load()
         sim = coppeliasim.bridge.require("sim")
+        import simulation_interface
         
-        print("SUCCESS!")
+        simulation_interface.setup()
+        
+        while (simulation_interface.run() and not simGetExitRequest()):
+            simLoop(None, 0)
+            # TODO Find a better way of doing this
+            sleep(sim.getSimulationTimeStep());
+        
+        simulation_interface.finish()
     except Exception:
         import traceback
         print(traceback.format_exc())
