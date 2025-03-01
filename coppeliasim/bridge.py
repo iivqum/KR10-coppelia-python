@@ -43,13 +43,21 @@ def call(func, args, typeHints=None):
     from coppeliasim.lib import (
         simCreateStack,
         simCallScriptFunctionEx,
+        # Added for support
+        simGetScriptHandleEx,
         simReleaseStack,
         sim_scripttype_sandbox,
     )
     import coppeliasim.stack as stack
     stackHandle = simCreateStack()
     stack.write(stackHandle, args, typeHints[0])
+    """
     s = sim_scripttype_sandbox
+    f = ctypes.c_char_p(f'{func}@lua'.encode('ascii'))
+    r = simCallScriptFunctionEx(s, f, stackHandle)
+    """
+    # Needed for V4.8 compatibility or something
+    s = simGetScriptHandleEx(sim_scripttype_sandbox, -1, None);
     f = ctypes.c_char_p(f'{func}@lua'.encode('ascii'))
     r = simCallScriptFunctionEx(s, f, stackHandle)
     if r == -1:

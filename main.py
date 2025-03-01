@@ -1,36 +1,46 @@
 import argparse
-import coppeliasim.cmdopt
 
-def thread_func():
-    from coppeliasim.lib import (
-        appDir,
-        simInitialize,
-        simLoop,
-        simDeinitialize,
-        simGetExitRequest,
-    )
+def sim_thread():
+    from coppeliasim.lib import (appDir, simInitialize, simLoop, 
+        simDeinitialize, simGetExitRequest)
+        
+    import coppeliasim.bridge
+    
+    simInitialize(appDir().encode('utf-8'), 0)    
+    
+    try:
 
-    simInitialize(appDir().encode('utf-8'), 0)
-
-    while not simGetExitRequest():
-        simLoop(None, 0)
-
+        coppeliasim.bridge.load()
+        sim = coppeliasim.bridge.require("sim")
+        
+        print("SUCCESS!")
+    except Exception:
+        import traceback
+        print(traceback.format_exc())
+    
     simDeinitialize()
+    
+if __name__ == "__main__":    
+    import coppeliasim.cmdopt
+    # Use -L to pass the binaries folder (Coppelia/CoppeliaSim.dll)
+    parser = argparse.ArgumentParser(description = "Coppelia Sim", add_help = False)
 
-# Use -L to pass the binaries folder (Coppelia/CoppeliaSim.dll)
-parser = argparse.ArgumentParser(description = "Coppelia Sim", add_help = False)
+    coppeliasim.cmdopt.add(parser)
 
-coppeliasim.cmdopt.add(parser)
+    args = parser.parse_args()
+    # Set up Coppelia C bindings
+    coppeliasim.cmdopt.read_args(args)
 
-args = parser.parse_args()
-# Set up Coppelia C bindings
-coppeliasim.cmdopt.read_args(args)
+    from coppeliasim.lib import (simRunGui, sim_gui_headless)
+    import threading
+    #py main.py -L "C:\Users\Josh\Desktop\roboreclaim\Coppelia\CoppeliaSim.dll"
 
-from coppeliasim.lib import *
-import threading
+    # If Coppelia isn't running in headless mode, then it must be threaded
+    # Coppelia runs in its own thread so it doesn't block
+    t = threading.Thread(target = sim_thread)
+    t.start()
+    # No GUI
+    simRunGui(sim_gui_headless)
+    t.join()
 
-t = threading.Thread(target = thread_func)
-t.start()
-# No GUI
-simRunGui(sim_gui_headless)
-t.join()
+    print("main thread terminated\n")

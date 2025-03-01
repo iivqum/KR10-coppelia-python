@@ -130,6 +130,9 @@ coppeliaSimLib.simDebugStack.argtypes = [c_int, c_int]
 coppeliaSimLib.simDebugStack.restype = c_int
 coppeliaSimLib.simGetStringParam.argtypes = [c_int]
 coppeliaSimLib.simGetStringParam.restype = c_void_p
+# Added for V4.8 compatibility
+coppeliaSimLib.simGetScriptHandleEx.argtypes = [c_int, c_int, c_char_p]
+coppeliaSimLib.simGetScriptHandleEx.restype = c_int
 
 __all__ = ['appDir']
 
