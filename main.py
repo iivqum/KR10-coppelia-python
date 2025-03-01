@@ -8,14 +8,7 @@ def sim_thread():
     import coppeliasim.bridge
     
     simInitialize(appDir().encode('utf-8'), 0)    
-    
-    def step():
-        # Steps through the simulation once
-        if sim.getSimulationState() != sim.simulation_stopped:
-            t = sim.getSimulationTime()
-            while t == sim.getSimulationTime():
-                simLoop(None, 0)    
-    
+
     try:
         coppeliasim.bridge.load()
         sim = coppeliasim.bridge.require("sim")
