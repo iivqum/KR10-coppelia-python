@@ -70,16 +70,15 @@ class generic_ik:
     def setup_ik(self):
         try:
             self.ik_environment = simIK.createEnvironment()
-            
             self.ik_group_undamped = simIK.createGroup(self.ik_environment)
-        
+            self.ik_group_damped = simIK.createGroup(self.ik_environment)
+             
             simIK.setGroupCalculation(self.ik_environment, self.ik_group_undamped, 
                 simIK.method_pseudo_inverse, 0, 6)
             simIK.addElementFromScene(self.ik_environment, self.ik_group_undamped, self.handle, 
                 self.tip_handle, self.target_handle, simIK.constraint_pose)
-            
-            self.ik_group_damped = simIK.createGroup(self.ik_environment)
-            simIK.setGroupCalculation(self.ik_environment, self.ik_group_damped, simIK.method_damped_least_squares, 1, 99)
+            simIK.setGroupCalculation(self.ik_environment, self.ik_group_damped, 
+                simIK.method_damped_least_squares, 1, 99)
         except:
             print("Creating IK environment failed")
             raise
