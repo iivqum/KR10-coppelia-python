@@ -7,10 +7,11 @@ def setup():
     # Called when simulation is initialized
     # handle_kr10 = sim.loadModel("models/KR10.ttm")
     
-    
-    
-    kr10_controller = controller.generic_ik(True, "KR10")
-    
+    try:
+        kr10_controller = controller.generic_ik(True, "KR10")
+        print("Succesfully configured KR10")
+    except Exception as e:
+        print(f"Failed to create controller\n {e}")
     
     
     sim.startSimulation()
@@ -18,12 +19,10 @@ def setup():
 def run():
     # Called every time the simulation runs
     # Simulation thread exits when this function returns false
-    if sim.getSimulationTime() >= 4:
-        return False
     
-    print(sim.getSimulationTime())
+    #print(sim.getSimulationTime())
     
-    return True
+    return False
     
 def finish():
     # Called when simulation finishes (when run() returns false)

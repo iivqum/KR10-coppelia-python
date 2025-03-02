@@ -5,48 +5,69 @@ class generic_ik:
     
     def __init__(self, is_model = True, model_name = ""):
         """
-        * Joints must be labelled as joint<number>.
         * A dummy object must be connected to the end effector called "tip".
+        * A dummy object called "target" must be in the model hierarchy
         * Object must not be dynamic.
         
         If is_model is False, the object will be searched for in the scene,
         otherwise it is loaded from the models/ directory.
         """
         
+        print(f"Attempting to load {str(model_name)}")
+        
         if not isinstance(model_name, str):
-            raise TypeError()
+            raise TypeError("Model name not string")
         
         self.joints = list()
-        # Unique object handle
-        self.handle = -1
         
         try:
             if is_model:
                 self.handle = sim.loadModel(f"models/{model_name}.ttm")
             else:
                 self.handle = sim.getObject(f"/{model_name}", {"noError" : False})
-        except Exception:
-            raise Exception("Something went wrong loading the model")
+        except Exception as e:
+            print(f"Something went wrong loading the model\n{e}")
             
         # No model found
-        if self.handle == -1:
+        if not hasattr(self, "handle"):
             raise Exception("Tried to load '", model_name, 
                 "\nModel not found in scene or file.")
         # Path to the scene object
-        self.root_path = f"/{model_name}"
-        
-        self.setup_joints()
+        self.root_path = f"/{model_name}/"
+
+        self.setup_required()
         self.setup_ik()
         
     def is_valid(self):
-        return self.handle >= 0 and len(self.joints) > 0
+        return self.handle > 0 and self.target_handle > 0 and self.tip_handle and len(self.joints) > 0
     
-    def setup_joints(self):
+    def setup_required(self):
         # TODO is this in order?
-        for object_handle in sim.getObjectsInTree(self.handle, 
+        # Add joints
+        for joint_handle in sim.getObjectsInTree(self.handle, 
             sim.sceneobject_joint):
+            self.joints.append(joint_handle)
+        # Find tip and target
+        for dummy_handle in sim.getObjectsInTree(self.handle, 
+            sim.sceneobject_dummy):
+            # TODO create tip and target when none are found
+            # Last object in tree is selected !!!
+            alias = sim.getStringProperty(dummy_handle, "alias", {"noError" : False})
             
-            self.joints.append(object_handle)
+            if not isinstance(alias, str):
+                continue
+             
+            alias = alias.lower()
+            
+            if alias == "tip":
+                self.tip_handle = dummy_handle
+            elif alias == "target":
+                self.target_handle = dummy_handle
+        
+        if not hasattr(self, "tip_handle"):
+            raise Exception("Couldn't find tip dummy")
+        if not hasattr(self, "target_handle"):
+            raise Exception("Couldn't find target dummy")
     
     def setup_ik(self):
         pass
