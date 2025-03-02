@@ -5,6 +5,7 @@ import controller
 
 def setup():
     # Called when simulation is initialized
+    # Returns False when setup failed
     # handle_kr10 = sim.loadModel("models/KR10.ttm")
     
     try:
@@ -12,9 +13,11 @@ def setup():
         print("Succesfully configured KR10")
     except Exception as e:
         print(f"Failed to create controller\n {e}")
-    
+        return False
     
     sim.startSimulation()
+    
+    return True
         
 def run():
     # Called every time the simulation runs

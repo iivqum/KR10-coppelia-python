@@ -14,14 +14,16 @@ def sim_thread():
         sim = coppeliasim.bridge.require("sim")
         import simulation_interface
         
-        simulation_interface.setup()
-        
-        while (simulation_interface.run() and not simGetExitRequest()):
-            simLoop(None, 0)
-            # TODO Find a better way of doing this
-            sleep(sim.getSimulationTimeStep());
-        
-        simulation_interface.finish()
+        if simulation_interface.setup():
+            while (simulation_interface.run() and not simGetExitRequest()):
+                simLoop(None, 0)
+                # TODO Find a better way of doing this
+                sleep(sim.getSimulationTimeStep());
+            
+            simulation_interface.finish()
+            
+        else:
+             print("Simulation ended prematurely")
     except Exception:
         import traceback
         print(traceback.format_exc())

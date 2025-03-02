@@ -27,6 +27,7 @@ class generic_ik:
                 self.handle = sim.getObject(f"/{model_name}", {"noError" : False})
         except Exception as e:
             print(f"Something went wrong loading the model\n{e}")
+            raise
             
         # No model found
         if not hasattr(self, "handle"):
@@ -52,22 +53,33 @@ class generic_ik:
             sim.sceneobject_dummy):
             # TODO create tip and target when none are found
             # Last object in tree is selected !!!
-            alias = sim.getStringProperty(dummy_handle, "alias", {"noError" : False})
-            
-            if not isinstance(alias, str):
-                continue
-             
-            alias = alias.lower()
-            
-            if alias == "tip":
-                self.tip_handle = dummy_handle
-            elif alias == "target":
-                self.target_handle = dummy_handle
-        
+            try:
+                alias = sim.getStringProperty(dummy_handle, "alias", {"noError" : False}).lower()
+                               
+                if alias == "tip":
+                    self.tip_handle = dummy_handle
+                elif alias == "target":
+                    self.target_handle = dummy_handle
+            except:
+                raise
         if not hasattr(self, "tip_handle"):
             raise Exception("Couldn't find tip dummy")
         if not hasattr(self, "target_handle"):
             raise Exception("Couldn't find target dummy")
     
     def setup_ik(self):
-        pass
+        try:
+            self.ik_environment = simIK.createEnvironment()
+            
+            self.ik_group_undamped = simIK.createGroup(self.ik_environment)
+        
+            simIK.setGroupCalculation(self.ik_environment, self.ik_group_undamped, 
+                simIK.method_pseudo_inverse, 0, 6)
+            simIK.addElementFromScene(self.ik_environment, self.ik_group_undamped, self.handle, 
+                self.tip_handle, self.target_handle, simIK.constraint_pose)
+            
+            self.ik_group_damped = simIK.createGroup(self.ik_environment)
+            simIK.setGroupCalculation(self.ik_environment, self.ik_group_damped, simIK.method_damped_least_squares, 1, 99)
+        except:
+            print("Creating IK environment failed")
+            raise
