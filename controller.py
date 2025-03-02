@@ -35,8 +35,6 @@ class generic_ik:
         # Path to the scene object
         self.root_path = f"/{model_name}"
         
-        print(model_name + " loaded successfully!")
-        
         self.setup_joints()
         self.setup_ik()
         
@@ -44,7 +42,11 @@ class generic_ik:
         return self.handle >= 0 and len(self.joints) > 0
     
     def setup_joints(self):
-        pass
+        # TODO is this in order?
+        for object_handle in sim.getObjectsInTree(self.handle, 
+            sim.sceneobject_joint):
+            
+            self.joints.append(object_handle)
     
     def setup_ik(self):
         pass

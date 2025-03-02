@@ -6,6 +6,9 @@ import controller
 def setup():
     # Called when simulation is initialized
     # handle_kr10 = sim.loadModel("models/KR10.ttm")
+    
+    
+    
     kr10_controller = controller.generic_ik(True, "KR10")
     
     
