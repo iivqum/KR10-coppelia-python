@@ -1,12 +1,15 @@
 # coppeliasim.bridge.load must be called from main.py
-import coppeliasim.bridge
+from dependencies import *
+
+import controller
 
 def setup():
     # Called when simulation is initialized
-    global sim, simIK
-    sim = coppeliasim.bridge.require("sim")
-    simIK = coppeliasim.bridge.require("simIK")
-
+    # handle_kr10 = sim.loadModel("models/KR10.ttm")
+    kr10_controller = controller.generic_ik(True, "KR10")
+    
+    
+    
     sim.startSimulation()
         
 def run():
@@ -15,8 +18,10 @@ def run():
     if sim.getSimulationTime() >= 4:
         return False
     
+    print(sim.getSimulationTime())
     
     return True
     
 def finish():
+    # Called when simulation finishes (when run() returns false)
     sim.stopSimulation()
