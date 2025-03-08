@@ -1,4 +1,17 @@
+import threading
 from dependencies import *
+
+class generic_ik_thread(threading.Thread):
+    def __init__(self, is_model = True, model_name = ""):
+        super().__init__()
+        ik = generic_ik(is_model, model_name)
+        self._kwargs["ik_object"] = ik
+    
+    def run(self):
+        # Thread
+        ik = self._kwargs["ik_object"]
+        
+        
 
 class generic_ik:
     # Generic arm controller class that performs IK and positioning of the arm
@@ -37,13 +50,20 @@ class generic_ik:
         self.root_path = f"/{model_name}/"
 
         self.setup_required()
-        self.setup_ik()
-        
+        self.setup_ik(1, 99)
+    
+    def get_tip(self):
+        return self.tip_handle
+ 
+    def get_target(self):
+        return self.target_handle
+    
     def is_valid(self):
         return self.handle > 0 and self.target_handle > 0 and self.tip_handle and len(self.joints) > 0
     
     def setup_required(self):
         # TODO is this in order?
+        # TODO dynamic joint warning
         # Add joints
         for joint_handle in sim.getObjectsInTree(self.handle, 
             sim.sceneobject_joint):
@@ -67,18 +87,22 @@ class generic_ik:
         if not hasattr(self, "target_handle"):
             raise Exception("Couldn't find target dummy")
     
-    def setup_ik(self):
+    def setup_ik(self, damping_factor, max_iterations):
         try:
             self.ik_environment = simIK.createEnvironment()
             self.ik_group_undamped = simIK.createGroup(self.ik_environment)
             self.ik_group_damped = simIK.createGroup(self.ik_environment)
              
             simIK.setGroupCalculation(self.ik_environment, self.ik_group_undamped, 
-                simIK.method_pseudo_inverse, 0, 6)
+                simIK.method_pseudo_inverse, 0, max_iterations)
             simIK.addElementFromScene(self.ik_environment, self.ik_group_undamped, self.handle, 
                 self.tip_handle, self.target_handle, simIK.constraint_pose)
             simIK.setGroupCalculation(self.ik_environment, self.ik_group_damped, 
-                simIK.method_damped_least_squares, 1, 99)
+                simIK.method_damped_least_squares, damping_factor, max_iterations)
         except:
             print("Creating IK environment failed")
             raise
+    
+    def update(self):
+        # Called every frame of the simulation
+        simIK.handleGroup(self.ik_environment, self.ik_group_undamped, {"syncWorlds" : True})

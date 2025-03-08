@@ -2,6 +2,7 @@ import argparse
 from time import sleep
 
 def sim_thread():
+    # Main Coppelia thread
     from coppeliasim.lib import (appDir, simInitialize, simLoop, 
         simDeinitialize, simGetExitRequest)
         
@@ -39,18 +40,18 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     # Set up Coppelia C bindings
-    coppeliasim.cmdopt.read_args(args)
+    options = coppeliasim.cmdopt.read_args(args)
 
     from coppeliasim.lib import (simRunGui, sim_gui_headless)
     import threading
-    #py main.py -L "C:\Users\Josh\Desktop\roboreclaim\Coppelia\CoppeliaSim.dll"
+    #py main.py -L "C:\Users\Josh\Desktop\roboreclaim\Coppelia\CoppeliaSim.dll" -v none -h
 
     # If Coppelia isn't running in headless mode, then it must be threaded
     # Coppelia runs in its own thread so it doesn't block
     t = threading.Thread(target = sim_thread)
     t.start()
     # No GUI
-    simRunGui(sim_gui_headless)
+    simRunGui(options)
     t.join()
 
     print("main thread terminated\n")

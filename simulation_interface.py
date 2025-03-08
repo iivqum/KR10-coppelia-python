@@ -1,6 +1,7 @@
 # coppeliasim.bridge.load must be called from main.py
 from dependencies import *
 
+import math
 import controller
 
 def setup():
@@ -9,13 +10,14 @@ def setup():
     # handle_kr10 = sim.loadModel("models/KR10.ttm")
     
     try:
-        kr10_controller = controller.generic_ik(True, "KR10")
-        print("Succesfully configured KR10")
+        global kr10_controller 
+        thread = controller.generic_ik_thread(True, "KR10")
+        print("Succesfully configured KR10\nLaunching thread")
+        thread.start()
+        print("Thread launched")
     except Exception as e:
         print(f"Failed to create controller\n {e}")
         return False
-    
-    sim.startSimulation()
     
     return True
         
@@ -24,9 +26,9 @@ def run():
     # Simulation thread exits when this function returns false
     
     #print(sim.getSimulationTime())
-    
-    return False
+
+    return True
     
 def finish():
-    # Called when simulation finishes (when run() returns false)
+    # Called when run() returns falls or there is an exit request
     sim.stopSimulation()
