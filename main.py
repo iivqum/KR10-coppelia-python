@@ -54,4 +54,4 @@ if __name__ == "__main__":
     simRunGui(options)
     t.join()
 
-    print("main thread terminated\n")
+    print("Main thread terminated")

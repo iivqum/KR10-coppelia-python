@@ -1,15 +1,35 @@
 import threading
 from dependencies import *
+from time import sleep
 
 class generic_ik_thread(threading.Thread):
     def __init__(self, is_model = True, model_name = ""):
         super().__init__()
         ik = generic_ik(is_model, model_name)
         self._kwargs["ik_object"] = ik
+        self.terminate = False
+
+        self.setDaemon(True)
+        self.start()
+        print("IK thread started")
+       
+    def kill(self):
+        self.terminate = True
+    
+    def get_ik(self):
+        return self._kwargs["ik_object"]
     
     def run(self):
         # Thread
         ik = self._kwargs["ik_object"]
+        try:
+            while not self.terminate:
+                ik.update()
+        except Exception as e:
+            print(f"Thread failure\n{e}")
+            raise
+        
+        print("IK Thread terminated successfully")
         
         
 
@@ -104,5 +124,4 @@ class generic_ik:
             raise
     
     def update(self):
-        # Called every frame of the simulation
         simIK.handleGroup(self.ik_environment, self.ik_group_undamped, {"syncWorlds" : True})

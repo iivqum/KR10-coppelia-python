@@ -10,11 +10,9 @@ def setup():
     # handle_kr10 = sim.loadModel("models/KR10.ttm")
     
     try:
-        global kr10_controller 
-        thread = controller.generic_ik_thread(True, "KR10")
-        print("Succesfully configured KR10\nLaunching thread")
-        thread.start()
-        print("Thread launched")
+        global kr10_controller_thread 
+        kr10_controller_thread = controller.generic_ik_thread(True, "KR10")
+        print("Succesfully loaded KR10\n")
     except Exception as e:
         print(f"Failed to create controller\n {e}")
         return False
@@ -27,8 +25,12 @@ def run():
     
     #print(sim.getSimulationTime())
 
+    kr10 = kr10_controller_thread.get_ik()
+    kr10.update()
+
     return True
     
 def finish():
     # Called when run() returns falls or there is an exit request
+    kr10_controller_thread.kill()
     sim.stopSimulation()
