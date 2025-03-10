@@ -2,13 +2,15 @@ import threading
 from dependencies import *
 from time import sleep
 
+import coppeliasim.bridge
+
 class generic_ik_thread(threading.Thread):
     def __init__(self, is_model = True, model_name = ""):
         super().__init__()
         ik = generic_ik(is_model, model_name)
         self._kwargs["ik_object"] = ik
+        self._kwargs["sim"] = sim
         self.terminate = False
-
         self.setDaemon(True)
         self.start()
         print("IK thread started")
@@ -22,9 +24,11 @@ class generic_ik_thread(threading.Thread):
     def run(self):
         # Thread
         ik = self._kwargs["ik_object"]
+        sim = self._kwargs["sim"]
+        
         try:
             while not self.terminate:
-                ik.update()
+                sim.step()
         except Exception as e:
             print(f"Thread failure\n{e}")
             raise

@@ -25,9 +25,6 @@ def run():
     
     #print(sim.getSimulationTime())
 
-    kr10 = kr10_controller_thread.get_ik()
-    kr10.update()
-
     return True
     
 def finish():
