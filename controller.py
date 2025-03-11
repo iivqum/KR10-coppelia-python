@@ -85,6 +85,9 @@ class generic_ik:
  
     def get_target(self):
         return self.target_handle
+        
+    def get_handle(self):
+        return self.handle
     
     def is_valid(self):
         return self.handle > 0 and self.target_handle > 0 and self.tip_handle and len(self.joints) > 0

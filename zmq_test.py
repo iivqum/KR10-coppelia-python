@@ -14,9 +14,14 @@ def action():
         
         kr10.reset_target()
         
-        bolt = sim.getObject("/battery/bolt6/bolt_btm/bolt_top")
+        default_pos = sim.getObjectPosition(kr10.get_target())
+        default_orient = sim.getObjectOrientation(kr10.get_target())
         
-        kr10.move_to(sim.getObjectPosition(bolt), sim.getObjectOrientation(bolt))
+        for i in range(1, 7):
+            bolt = sim.getObject(f"/battery/bolt{i}/bolt_btm/bolt_top/")
+                
+            kr10.move_to(sim.getObjectPosition(bolt), sim.getObjectOrientation(bolt))
+            kr10.move_to(default_pos, default_orient)
     except:
         print("Thread failed")
         raise
