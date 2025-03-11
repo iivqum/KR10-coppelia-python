@@ -1,6 +1,6 @@
 import threading
-from dependencies import *
 from time import sleep
+from dependencies import *
 
 import coppeliasim.bridge
 
@@ -8,8 +8,8 @@ class generic_ik_thread(threading.Thread):
     def __init__(self, is_model = True, model_name = ""):
         super().__init__()
         ik = generic_ik(is_model, model_name)
-        self._kwargs["ik_object"] = ik
-        self._kwargs["sim"] = sim
+        self.is_model = is_model
+        
         self.terminate = False
         self.setDaemon(True)
         self.start()
@@ -24,7 +24,9 @@ class generic_ik_thread(threading.Thread):
     def run(self):
         # Thread
         ik = self._kwargs["ik_object"]
-        sim = self._kwargs["sim"]
+        client = RemoteAPIClient()
+        sim = client.require('sim')
+        ik = generic_ik(self.is_model, self.model_name)
         
         try:
             while not self.terminate:
@@ -75,6 +77,8 @@ class generic_ik:
 
         self.setup_required()
         self.setup_ik(1, 99)
+        
+        print(f"Successfully loaded {str(model_name)}")
     
     def get_tip(self):
         return self.tip_handle
@@ -127,5 +131,22 @@ class generic_ik:
             print("Creating IK environment failed")
             raise
     
-    def update(self):
+    def update_ik(self, data):
+        sim.setObjectPose(data["auxData"], data["pose"])
         simIK.handleGroup(self.ik_environment, self.ik_group_undamped, {"syncWorlds" : True})
+        
+    def reset_target(self):
+        sim.setObjectPose(self.target_handle, sim.getObjectPose(self.tip_handle))
+        
+    def move_to(self, position, angles):
+        pose = sim.buildPose(position, angles)
+        params = {
+            "object" : self.target_handle,
+            "targetPose" : pose,
+            "maxVel" : [10, 10, 10, 10],
+            "maxAccel" : [10, 10, 10, 10],
+            "maxJerk" : [1, 1, 1, 1],
+            "auxData" : self.target_handle,
+            "callback" : self.update_ik
+        }
+        sim.moveToPose(params)

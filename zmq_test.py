@@ -1,21 +1,32 @@
+import threading
 from time import sleep
-from coppeliasim_zmqremoteapi_client import RemoteAPIClient
+import math
 
+from dependencies import *
 
-try:
-    print("Connecting to remote API")
-    client = RemoteAPIClient()
-    sim = client.require('sim')
+# Using KR10_and_battery.ttt
 
-    print("success")
+def action():
+    # Also imports dependencies
+    import controller
+    try:
+        kr10 = controller.generic_ik(False, "KR10")
+        
+        kr10.reset_target()
+        
+        bolt = sim.getObject("/battery/bolt6/bolt_btm/bolt_top")
+        
+        kr10.move_to(sim.getObjectPosition(bolt), sim.getObjectOrientation(bolt))
+    except:
+        print("Thread failed")
+        raise
 
-    sim.setStepping(True)
-    sim.startSimulation()
+sim.startSimulation()
 
-    while sim.getSimulationTime() < 10:
-        print(sim.getSimulationTime())
-        sim.step()
+test = threading.Thread(target = action)
+test.start()
+test.join()
 
-    sim.stopSimulation()
-except Exception as e:
-    print(e)
+sim.stopSimulation()
+
+print("Simulation stopped")
