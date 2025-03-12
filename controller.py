@@ -91,6 +91,9 @@ class generic_ik:
     
     def is_valid(self):
         return self.handle > 0 and self.target_handle > 0 and self.tip_handle and len(self.joints) > 0
+        
+    def get_joint_handle(self, joint):
+        return self.joints[joint]
     
     def setup_required(self):
         # TODO is this in order?
@@ -122,24 +125,40 @@ class generic_ik:
         try:
             self.ik_environment = simIK.createEnvironment()
             self.ik_group_undamped = simIK.createGroup(self.ik_environment)
+            self.ik_group_undamped_constrained = simIK.createGroup(self.ik_environment)
             self.ik_group_damped = simIK.createGroup(self.ik_environment)
              
             simIK.setGroupCalculation(self.ik_environment, self.ik_group_undamped, 
                 simIK.method_pseudo_inverse, 0, max_iterations)
+            simIK.setGroupCalculation(self.ik_environment, self.ik_group_undamped_constrained, 
+                simIK.method_pseudo_inverse, 0, max_iterations)
             simIK.addElementFromScene(self.ik_environment, self.ik_group_undamped, self.handle, 
                 self.tip_handle, self.target_handle, simIK.constraint_pose)
+            simIK.addElementFromScene(self.ik_environment, self.ik_group_undamped_constrained, self.handle, 
+                self.tip_handle, self.target_handle, simIK.constraint_position)
+                
             simIK.setGroupCalculation(self.ik_environment, self.ik_group_damped, 
                 simIK.method_damped_least_squares, damping_factor, max_iterations)
         except:
             print("Creating IK environment failed")
             raise
     
-    def update_ik(self, data):
-        sim.setObjectPose(data["auxData"], data["pose"])
+    def update_ik(self, constrained = False):
+        if constrained:
+            simIK.handleGroup(self.ik_environment, self.ik_group_undamped_constrained, {"syncWorlds" : True})
+            return
         simIK.handleGroup(self.ik_environment, self.ik_group_undamped, {"syncWorlds" : True})
-        
+
+    def move_to_callback(self, data):
+        sim.setObjectPose(data["auxData"], data["pose"])
+        self.update_ik()
+  
     def reset_target(self):
         sim.setObjectPose(self.target_handle, sim.getObjectPose(self.tip_handle))
+        
+    def set_target_pose(self, position, angles):
+        sim.setObjectPosition(self.target_handle, position)
+        sim.setObjectOrientation(self.target_handle, position)
         
     def move_to(self, position, angles):
         pose = sim.buildPose(position, angles)
@@ -148,8 +167,8 @@ class generic_ik:
             "targetPose" : pose,
             "maxVel" : [10, 10, 10, 10],
             "maxAccel" : [10, 10, 10, 10],
-            "maxJerk" : [1, 1, 1, 1],
+            "maxJerk" : [0.01, 0.01, 0.01, 0.01],
             "auxData" : self.target_handle,
-            "callback" : self.update_ik
+            "callback" : self.move_to_callback
         }
         sim.moveToPose(params)
