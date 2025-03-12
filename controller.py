@@ -1,6 +1,5 @@
 import threading
 from time import sleep
-from dependencies import *
 
 import coppeliasim.bridge
 
@@ -25,12 +24,12 @@ class generic_ik_thread(threading.Thread):
         # Thread
         ik = self._kwargs["ik_object"]
         client = RemoteAPIClient()
-        sim = client.require('sim')
+        self.sim = client.require('self.sim')
         ik = generic_ik(self.is_model, self.model_name)
         
         try:
             while not self.terminate:
-                sim.step()
+                self.sim.step()
         except Exception as e:
             print(f"Thread failure\n{e}")
             raise
@@ -40,7 +39,7 @@ class generic_ik_thread(threading.Thread):
 class generic_ik:
     # Generic arm controller class that performs IK and positioning of the arm
     
-    def __init__(self, is_model = True, model_name = ""):
+    def __init__(self, sim, sim_ik, is_model = True, model_name = ""):
         """
         * A dummy object must be connected to the end effector called "tip".
         * A dummy object called "target" must be in the model hierarchy
@@ -49,6 +48,10 @@ class generic_ik:
         If is_model is False, the object will be searched for in the scene,
         otherwise it is loaded from the models/ directory.
         """
+        
+        # TODO find a way of doing this without doing this, perhaps using global variables
+        self.sim = sim
+        self.simik = sim_ik
         
         print(f"Attempting to load {str(model_name)}")
         
@@ -59,9 +62,9 @@ class generic_ik:
         
         try:
             if is_model:
-                self.handle = sim.loadModel(f"models/{model_name}.ttm")
+                self.handle = self.sim.loadModel(f"models/{model_name}.ttm")
             else:
-                self.handle = sim.getObject(f"/{model_name}", {"noError" : False})
+                self.handle = self.sim.getObject(f"/{model_name}", {"noError" : False})
         except Exception as e:
             print(f"Something went wrong loading the model\n{e}")
             raise
@@ -92,8 +95,8 @@ class generic_ik:
         
     def get_child_object(self, name = ""):
         try:
-            for child in sim.getObjectsInTree(self.handle):
-                alias = sim.getStringProperty(child, "alias", {"noError" : False}).lower()
+            for child in self.sim.getObjectsInTree(self.handle):
+                alias = self.sim.getStringProperty(child, "alias", {"noError" : False}).lower()
                 if alias == name:
                     return child
         except:
@@ -106,8 +109,8 @@ class generic_ik:
     def setup_required(self):
         # TODO dynamic joint warning
         # Add joints
-        for joint_handle in sim.getObjectsInTree(self.handle, 
-            sim.sceneobject_joint):
+        for joint_handle in self.sim.getObjectsInTree(self.handle, 
+            self.sim.sceneobject_joint):
             self.joints.append(joint_handle)
         # Find tip and target
         tip = self.get_child_object("tip")
@@ -123,45 +126,45 @@ class generic_ik:
     
     def setup_ik(self, damping_factor, max_iterations):
         try:
-            self.ik_environment = simIK.createEnvironment()
-            self.ik_group_undamped = simIK.createGroup(self.ik_environment)
-            self.ik_group_undamped_constrained = simIK.createGroup(self.ik_environment)
-            self.ik_group_damped = simIK.createGroup(self.ik_environment)
+            self.ik_environment = self.simik.createEnvironment()
+            self.ik_group_undamped = self.simik.createGroup(self.ik_environment)
+            self.ik_group_undamped_constrained = self.simik.createGroup(self.ik_environment)
+            self.ik_group_damped = self.simik.createGroup(self.ik_environment)
              
-            simIK.setGroupCalculation(self.ik_environment, self.ik_group_undamped, 
-                simIK.method_pseudo_inverse, 0, max_iterations)
-            simIK.setGroupCalculation(self.ik_environment, self.ik_group_undamped_constrained, 
-                simIK.method_pseudo_inverse, 0, max_iterations)
-            simIK.addElementFromScene(self.ik_environment, self.ik_group_undamped, self.handle, 
-                self.tip_handle, self.target_handle, simIK.constraint_pose)
-            simIK.addElementFromScene(self.ik_environment, self.ik_group_undamped_constrained, self.handle, 
-                self.tip_handle, self.target_handle, simIK.constraint_position)
+            self.simik.setGroupCalculation(self.ik_environment, self.ik_group_undamped, 
+                self.simik.method_pseudo_inverse, 0, max_iterations)
+            self.simik.setGroupCalculation(self.ik_environment, self.ik_group_undamped_constrained, 
+                self.simik.method_pseudo_inverse, 0, max_iterations)
+            self.simik.addElementFromScene(self.ik_environment, self.ik_group_undamped, self.handle, 
+                self.tip_handle, self.target_handle, self.simik.constraint_pose)
+            self.simik.addElementFromScene(self.ik_environment, self.ik_group_undamped_constrained, self.handle, 
+                self.tip_handle, self.target_handle, self.simik.constraint_position)
                 
-            simIK.setGroupCalculation(self.ik_environment, self.ik_group_damped, 
-                simIK.method_damped_least_squares, damping_factor, max_iterations)
+            self.simik.setGroupCalculation(self.ik_environment, self.ik_group_damped, 
+                self.simik.method_damped_least_squares, damping_factor, max_iterations)
         except:
             print("Creating IK environment failed")
             raise
     
     def update_ik(self, constrained = False):
         if constrained:
-            simIK.handleGroup(self.ik_environment, self.ik_group_undamped_constrained, {"syncWorlds" : True})
+            self.simik.handleGroup(self.ik_environment, self.ik_group_undamped_constrained, {"syncWorlds" : True})
             return
-        simIK.handleGroup(self.ik_environment, self.ik_group_undamped, {"syncWorlds" : True})
+        self.simik.handleGroup(self.ik_environment, self.ik_group_undamped, {"syncWorlds" : True})
 
     def move_to_callback(self, data):
-        sim.setObjectPose(data["auxData"], data["pose"])
+        self.sim.setObjectPose(data["auxData"], data["pose"])
         self.update_ik()
   
     def reset_target(self):
-        sim.setObjectPose(self.target_handle, sim.getObjectPose(self.tip_handle))
+        self.sim.setObjectPose(self.target_handle, self.sim.getObjectPose(self.tip_handle))
         
     def set_target_pose(self, position, angles):
-        sim.setObjectPosition(self.target_handle, position)
-        sim.setObjectOrientation(self.target_handle, position)
+        self.sim.setObjectPosition(self.target_handle, position)
+        self.sim.setObjectOrientation(self.target_handle, position)
         
     def move_to(self, position, angles):
-        pose = sim.buildPose(position, angles)
+        pose = self.sim.buildPose(position, angles)
         # TODO dont hardcode params
         params = {
             "object" : self.target_handle,
@@ -172,16 +175,16 @@ class generic_ik:
             "auxData" : self.target_handle,
             "callback" : self.move_to_callback
         }
-        sim.moveToPose(params)
+        self.sim.moveToPose(params)
         
     def rotate_to_callback(self, data):
-        sim.setJointPosition(data["auxData"], data["pos"][0])
+        self.sim.setJointPosition(data["auxData"], data["pos"][0])
         
     def rotate_to(self, position, max_velocity, max_acceleration, max_jerk, delta = False):
         if delta:
-            position += sim.getJointPosition(self.get_joint_handle(0))
+            position += self.sim.getJointPosition(self.get_joint_handle(0))
         
-        sim.moveToConfig({
+        self.sim.moveToConfig({
             "joints" : [self.get_joint_handle(0)],
             "targetPos" : [position],
             "maxVel" : [max_velocity],

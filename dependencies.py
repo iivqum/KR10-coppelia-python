@@ -1,10 +1,15 @@
 from coppeliasim_zmqremoteapi_client import RemoteAPIClient
 
-global sim
+sim = None
+simIK = None
 
-client = RemoteAPIClient()
-sim = client.require("sim")
-simIK = client.require("simIK")
+def init():
+    global sim
+    global simIK
+
+    client = RemoteAPIClient()
+    sim = client.require("sim")
+    simIK = client.require("simIK")
 
 """
 # If using api
