@@ -61,7 +61,7 @@ def action_kr10_1():
 
         bolt_recepticle = kr10.get_child_object("bolt_recepticle")
 
-        for i in range(1, 3):
+        for i in range(1, 4):
             bolt = sim.getObject(f"/battery/bolt{i}/bolt_btm/bolt_top/")
             bolt_pos = sim.getObjectPosition(bolt)
             bolt_orient = sim.getObjectOrientation(bolt)
@@ -146,7 +146,7 @@ def action_kr10_2():
 
         bolt_recepticle = kr10.get_child_object("bolt_recepticle")
 
-        for i in range(12, 10, -1):
+        for i in range(12, 9, -1):
             bolt = sim.getObject(f"/battery/bolt{i}/bolt_btm/bolt_top/")
             bolt_pos = sim.getObjectPosition(bolt)
             bolt_orient = sim.getObjectOrientation(bolt)
