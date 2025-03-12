@@ -36,8 +36,6 @@ class generic_ik_thread(threading.Thread):
             raise
         
         print("IK Thread terminated successfully")
-        
-        
 
 class generic_ik:
     # Generic arm controller class that performs IK and positioning of the arm
@@ -92,34 +90,36 @@ class generic_ik:
     def is_valid(self):
         return self.handle > 0 and self.target_handle > 0 and self.tip_handle and len(self.joints) > 0
         
+    def get_child_object(self, name = ""):
+        try:
+            for child in sim.getObjectsInTree(self.handle):
+                alias = sim.getStringProperty(child, "alias", {"noError" : False}).lower()
+                if alias == name:
+                    return child
+        except:
+            raise
+        return None
+        
     def get_joint_handle(self, joint):
         return self.joints[joint]
     
     def setup_required(self):
-        # TODO is this in order?
         # TODO dynamic joint warning
         # Add joints
         for joint_handle in sim.getObjectsInTree(self.handle, 
             sim.sceneobject_joint):
             self.joints.append(joint_handle)
         # Find tip and target
-        for dummy_handle in sim.getObjectsInTree(self.handle, 
-            sim.sceneobject_dummy):
-            # TODO create tip and target when none are found
-            # Last object in tree is selected !!!
-            try:
-                alias = sim.getStringProperty(dummy_handle, "alias", {"noError" : False}).lower()
-                               
-                if alias == "tip":
-                    self.tip_handle = dummy_handle
-                elif alias == "target":
-                    self.target_handle = dummy_handle
-            except:
-                raise
-        if not hasattr(self, "tip_handle"):
+        tip = self.get_child_object("tip")
+        target = self.get_child_object("target")
+        
+        if not tip:
             raise Exception("Couldn't find tip dummy")
-        if not hasattr(self, "target_handle"):
+        if not target:
             raise Exception("Couldn't find target dummy")
+            
+        self.tip_handle = tip
+        self.target_handle = target
     
     def setup_ik(self, damping_factor, max_iterations):
         try:
@@ -162,6 +162,7 @@ class generic_ik:
         
     def move_to(self, position, angles):
         pose = sim.buildPose(position, angles)
+        # TODO dont hardcode params
         params = {
             "object" : self.target_handle,
             "targetPose" : pose,
@@ -172,3 +173,23 @@ class generic_ik:
             "callback" : self.move_to_callback
         }
         sim.moveToPose(params)
+        
+    def rotate_to_callback(self, data):
+        sim.setJointPosition(data["auxData"], data["pos"][0])
+        
+    def rotate_to(self, position, max_velocity, max_acceleration, max_jerk, delta = False):
+        if delta:
+            position += sim.getJointPosition(self.get_joint_handle(0))
+        
+        sim.moveToConfig({
+            "joints" : [self.get_joint_handle(0)],
+            "targetPos" : [position],
+            "maxVel" : [max_velocity],
+            "maxAccel" : [max_acceleration],
+            "maxJerk" : [max_jerk],
+            "cyclicJoints" : [True],
+            "auxData" : self.get_joint_handle(0),
+            "callback" : self.rotate_to_callback
+        })
+        
+    

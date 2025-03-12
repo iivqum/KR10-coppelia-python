@@ -17,7 +17,8 @@ def action():
         default_pos = sim.getObjectPosition(kr10.get_target())
         default_orient = sim.getObjectOrientation(kr10.get_target())
         # Distance above the bolt before it couples 
-        bolt_offset = 0.3        
+        bolt_offset = 0.3
+        # Rotational speed of the end effector (rad/s)
         radians_per_second = math.pi / 2
         
         def spin_up():
@@ -25,6 +26,7 @@ def action():
             
         def spin_down():
             sim.setJointTargetVelocity(kr10.get_joint_handle(5), 0)
+            sim.setJointPosition(kr10.get_joint_handle(5), 0)
         
         def unscrew_bolt():
             # How far the bolt should be unscrewed before trying to move it
@@ -44,7 +46,7 @@ def action():
                 
                 #sim.setJointTargetPosition(kr10.get_joint_handle(5), joint_pos + radians_per_tick)
                 spin_up()
-                #im.setJointPosition(kr10.get_joint_handle(5), joint_pos + radians_per_tick)
+                #sim.setJointPosition(kr10.get_joint_handle(5), joint_pos + radians_per_tick)
                 
                 total_rotation += radians_per_tick
                 # Move in direction of end effector
@@ -56,17 +58,32 @@ def action():
                 
             spin_down()
 
-        
-        for i in range(1, 2):
+        bolt_recepticle = kr10.get_child_object("bolt_recepticle")
+
+        for i in range(1, 3):
             bolt = sim.getObject(f"/battery/bolt{i}/bolt_btm/bolt_top/")
             bolt_pos = sim.getObjectPosition(bolt)
+            bolt_orient = sim.getObjectOrientation(bolt)
             # Position just above the bolt
             kr10.move_to([bolt_pos[0], bolt_pos[1], bolt_pos[2] + bolt_offset], sim.getObjectOrientation(bolt))
+            sleep(0.5)
             # Go to bolt head
             kr10.move_to(sim.getObjectPosition(bolt), sim.getObjectOrientation(bolt))
+            sleep(0.5)
             sim.setObjectParent(bolt, kr10.get_joint_handle(5))
             unscrew_bolt()
+            sleep(0.5)
             # Return to default position
+            kr10.move_to(default_pos, default_orient)
+            kr10.rotate_to(math.pi, 0.5, 0.1, 0.1, delta = True)
+            old_pos = sim.getObjectPosition(kr10.get_tip())
+            old_orient = sim.getObjectOrientation(kr10.get_tip())
+            kr10.reset_target()
+            kr10.move_to(sim.getObjectPosition(bolt_recepticle), bolt_orient)
+            sim.setObjectParent(bolt, -1)
+            kr10.move_to(old_pos, old_orient)
+            kr10.rotate_to(math.pi, 0.5, 0.1, 0.1, delta = True)
+            kr10.reset_target()
             kr10.move_to(default_pos, default_orient)
     except:
         print("Thread failed")
