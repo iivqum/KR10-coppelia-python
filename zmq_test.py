@@ -3,7 +3,7 @@ from time import sleep
 import math
 from coppeliasim_zmqremoteapi_client import RemoteAPIClient
 
-# Using KR10_and_battery.ttt
+# Using KR10_and_battery_multi.ttt
 
 def unscrew_bolts(params):
     import controller
@@ -24,16 +24,9 @@ def unscrew_bolts(params):
         # Rotational speed of the end effector (rad/s)
         radians_per_second = math.pi
         
-        def spin_up():
-            sim.setJointTargetVelocity(kr10.get_joint_handle(5), radians_per_second)
-            
-        def spin_down():
-            sim.setJointTargetVelocity(kr10.get_joint_handle(5), 0)
-            sim.setJointPosition(kr10.get_joint_handle(5), 0)
-        
         def unscrew_bolt():
             # How far the bolt should be unscrewed before trying to move it
-            minimum_clearance = 0.2
+            minimum_clearance = 0.25
             # How far the bolt moves for every revolution of the thread
             distance_per_revolution = 0.05
             revolutions = minimum_clearance / distance_per_revolution
@@ -41,23 +34,25 @@ def unscrew_bolts(params):
             
             total_rotation = 0
             max_rotation = revolutions * 2 * math.pi
+
+            sim.setJointTargetVelocity(kr10.get_joint_handle(5), radians_per_second)
             
             while (total_rotation <= max_rotation):
                 radians_per_tick = sim.getSimulationTimeStep() * radians_per_second
                 distance_per_tick = distance_per_revolution * radians_per_tick / (2 * math.pi)
-                joint_pos = sim.getJointPosition(kr10.get_joint_handle(5))
                 
-                spin_up()
+                #joint_pos = sim.getJointPosition(kr10.get_joint_handle(5))
                 
                 total_rotation += radians_per_tick
                 # Move in direction of end effector
                 target_position = sim.getObjectPosition(kr10.get_target())
-                target_position[2] += distance_per_tick
-                
+                # Start moving only when the end effector is spinning
+                target_position[2] += distance_per_tick * min(sim.getJointVelocity(kr10.get_joint_handle(5)) / radians_per_second, 1)
+                # Move robot upwards while unscrewing
                 sim.setObjectPosition(kr10.get_target(), target_position)
                 kr10.update_ik(constrained = False)
                 
-            spin_down()
+            sim.setJointTargetVelocity(kr10.get_joint_handle(5), 0)
 
         bolt_recepticle = kr10.get_child_object("bolt_recepticle")
 
@@ -90,17 +85,19 @@ def unscrew_bolts(params):
         print("Thread failed")
         raise
 
+
+
 client = RemoteAPIClient()
 sim = client.require('sim')
 
+sim.adjustView(0, sim.getObject("/camera"), 64)
+
 print("Simulation started")
 
-kr10_1 = threading.Thread(target = unscrew_bolts, args = (
-{
+kr10_1 = threading.Thread(target = unscrew_bolts, args = ({
     "id" : "KR10_1",
-    "bolt_order" : [1, 2, 3]
-},
-))
+    "bolt_order" : [1, 2]
+},))
 
 kr10_1.start()
 
@@ -108,6 +105,7 @@ sim.startSimulation()
 
 kr10_1.join()
 
+sim.adjustView(0, sim.getObject("/DefaultCamera"), 64)
 sim.stopSimulation()
 
 print("Simulation stopped")
