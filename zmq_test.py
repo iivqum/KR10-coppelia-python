@@ -145,17 +145,9 @@ kr10_2 = threading.Thread(target = unscrew_bolts, args = ({
 
 sim.startSimulation()
 
-sim.setObjectPosition(sim.getObject("/battery"), [-5, 0, 0])
-move_to_smooth(sim.getObject("/battery"), [0, 0, 0], 4, delta = False)
-
-kr10_1.start()
-kr10_2.start()
-
-"""
+sim.adjustView(0, sim.getObject("/camera_topdown"), 64)
 sim.setObjectParent(sim.getObject("/camera_topdown"), sim.getObject("/battery"))
 sim.setObjectPosition(sim.getObject("/battery"), [-5, 0, 0])
-
-sim.adjustView(0, sim.getObject("/camera_topdown"), 64)
 move_to_smooth(sim.getObject("/battery"), [0, 0, 0], 4, delta = False)
 
 kr10_1.start()
@@ -167,11 +159,10 @@ sim.wait(4)
 sim.adjustView(0, sim.getObject("/camera_tip"), 64)
 sim.wait(6)
 sim.adjustView(0, sim.getObject("/camera_long"), 64)
-sim.wait(15)
-sim.adjustView(0, sim.getObject("/camera_topdown"), 64)
-sim.wait(6)
+sim.wait(10)
 sim.adjustView(0, sim.getObject("/camera_long"), 64)
-"""
+sim.wait(6)
+sim.adjustView(0, sim.getObject("/camera_topdown"), 64)
 
 kr10_1.join()
 kr10_2.join()
@@ -179,6 +170,12 @@ kr10_2.join()
 # All bolts are removed at this point
 
 move_to_smooth(sim.getObject("/battery/upper_housing"), [0, 0, 1.5], 4, delta = True)
+sim.wait(1)
+
+for i in range(1, 9):
+    move_to_smooth(sim.getObject(f"/battery/cell{i}"), [0, 0, 0.5], 0.25, delta = True)
+
+sim.wait(4)
 
 sim.stopSimulation()
 
