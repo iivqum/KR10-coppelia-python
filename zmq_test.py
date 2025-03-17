@@ -1,6 +1,7 @@
 import threading
-from time import sleep
 import math
+
+from time import sleep
 from coppeliasim_zmqremoteapi_client import RemoteAPIClient
 
 # Using KR10_and_battery_multi.ttt
@@ -28,7 +29,7 @@ def unscrew_bolts(params):
             # How far the bolt should be unscrewed before trying to move it
             minimum_clearance = 0.25
             # How far the bolt moves for every revolution of the thread
-            distance_per_revolution = 0.05
+            distance_per_revolution = 0.2
             revolutions = minimum_clearance / distance_per_revolution
             # How many radians/s the end effector can do
             
@@ -71,26 +72,57 @@ def unscrew_bolts(params):
             sleep(0.5)
             # Return to default position
             kr10.move_to(default_pos, default_orient)
-            kr10.rotate_to(math.pi, 1, 0.1, 0.1, delta = True)
+            kr10.rotate_to(math.pi, 10, 10, 10, delta = True)
             old_pos = sim.getObjectPosition(kr10.get_tip())
             old_orient = sim.getObjectOrientation(kr10.get_tip())
             kr10.reset_target()
             kr10.move_to(sim.getObjectPosition(bolt_recepticle), bolt_orient)
             sim.setObjectParent(bolt, -1)
             kr10.move_to(old_pos, old_orient)
-            kr10.rotate_to(math.pi, 1, 0.1, 0.1, delta = True)
+            kr10.rotate_to(math.pi, 10, 10, 10, delta = True)
             kr10.reset_target()
             kr10.move_to(default_pos, default_orient)
     except:
         print("Thread failed")
         raise
+                
+def move_to_smooth(obj_handle, end_position, duration, delta = False):
+    if duration <= 0:
+        raise RuntimeError("move_to_smooth: duration <= 0")
 
+    pos = sim.getObjectPosition(obj_handle)
+    goal = [end_position[0], end_position[1], end_position[2]]
+    if delta:
+        goal[0] += pos[0];
+        goal[1] += pos[1];
+        goal[2] += pos[2];
+    
+    dx = (goal[0] - pos[0])
+    dy = (goal[1] - pos[1])
+    dz = (goal[2] - pos[2])
+    
+    step = 0
 
+    sim.setStepping(True)
+    
+    while step <= duration:
+        t = math.sin(step / duration * math.pi * 0.5)
+        
+        sim.setObjectPosition(obj_handle, [
+            pos[0] + dx * t,
+            pos[1] + dy * t,
+            pos[2] + dz * t,
+        ])
+        step += sim.getSimulationTimeStep()
+        sim.step()
+        
+    sim.setStepping(False)    
 
 client = RemoteAPIClient()
 sim = client.require('sim')
 
-sim.adjustView(0, sim.getObject("/camera"), 64)
+#sim.adjustView(0, sim.getObject("/camera"), 64)
+#sim.adjustView(0, sim.getObject("/DefaultCamera"), 64)
 
 print("Simulation started")
 
@@ -99,13 +131,14 @@ kr10_1 = threading.Thread(target = unscrew_bolts, args = ({
     "bolt_order" : [1, 2]
 },))
 
-kr10_1.start()
-
 sim.startSimulation()
 
+sim.setObjectPosition(sim.getObject("/battery"), [-5, 0, 0])
+move_to_smooth(sim.getObject("/battery"), [0, 0, 0], 2, delta = False)
+
+kr10_1.start()
 kr10_1.join()
 
-sim.adjustView(0, sim.getObject("/DefaultCamera"), 64)
 sim.stopSimulation()
 
 print("Simulation stopped")

@@ -171,7 +171,7 @@ class generic_ik:
             "targetPose" : pose,
             "maxVel" : [10, 10, 10, 10],
             "maxAccel" : [10, 10, 10, 10],
-            "maxJerk" : [0.1, 0.1, 0.1, 0.1],
+            "maxJerk" : [10, 10, 10, 10],
             "auxData" : self.target_handle,
             "callback" : self.move_to_callback
         }
