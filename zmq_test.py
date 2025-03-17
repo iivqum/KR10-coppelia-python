@@ -25,9 +25,11 @@ def unscrew_bolts(params):
         # Rotational speed of the end effector (rad/s)
         radians_per_second = math.pi
         
+        #sim.setStepping(True)
+        
         def unscrew_bolt():
             # How far the bolt should be unscrewed before trying to move it
-            minimum_clearance = 0.25
+            minimum_clearance = 0.3
             # How far the bolt moves for every revolution of the thread
             distance_per_revolution = 0.2
             revolutions = minimum_clearance / distance_per_revolution
@@ -53,8 +55,10 @@ def unscrew_bolts(params):
                 sim.setObjectPosition(kr10.get_target(), target_position)
                 kr10.update_ik(constrained = False)
                 
+                #sim.step()
+                
             sim.setJointTargetVelocity(kr10.get_joint_handle(5), 0)
-
+    
         bolt_recepticle = kr10.get_child_object("bolt_recepticle")
 
         for i in params["bolt_order"]:
@@ -82,6 +86,8 @@ def unscrew_bolts(params):
             kr10.rotate_to(math.pi, 10, 10, 10, delta = True)
             kr10.reset_target()
             kr10.move_to(default_pos, default_orient)
+            
+        sim.setStepping(False)
     except:
         print("Thread failed")
         raise
@@ -128,17 +134,42 @@ print("Simulation started")
 
 kr10_1 = threading.Thread(target = unscrew_bolts, args = ({
     "id" : "KR10_1",
-    "bolt_order" : [1, 2]
+    "bolt_order" : [1, 2, 3, 4, 5, 6]
 },))
+
+kr10_2 = threading.Thread(target = unscrew_bolts, args = ({
+    "id" : "KR10_2",
+    "bolt_order" : [12, 11, 10, 9, 8, 7]
+},))
+
 
 sim.startSimulation()
 
+sim.setObjectParent(sim.getObject("/camera_topdown"), sim.getObject("/battery"))
 sim.setObjectPosition(sim.getObject("/battery"), [-5, 0, 0])
-move_to_smooth(sim.getObject("/battery"), [0, 0, 0], 2, delta = False)
+
+sim.adjustView(0, sim.getObject("/camera_topdown"), 64)
+move_to_smooth(sim.getObject("/battery"), [0, 0, 0], 4, delta = False)
 
 kr10_1.start()
+kr10_2.start()
+
+sim.wait(1)
+sim.adjustView(0, sim.getObject("/camera_closein"), 64)
+sim.wait(4)
+sim.adjustView(0, sim.getObject("/camera_tip"), 64)
+sim.wait(6)
+sim.adjustView(0, sim.getObject("/camera_long"), 64)
+sim.wait(15)
+sim.adjustView(0, sim.getObject("/camera_topdown"), 64)
+sim.wait(6)
+sim.adjustView(0, sim.getObject("/camera_long"), 64)
+
 kr10_1.join()
+kr10_2.join()
 
 sim.stopSimulation()
+
+sim.adjustView(0, sim.getObject("/DefaultCamera"), 64)
 
 print("Simulation stopped")
