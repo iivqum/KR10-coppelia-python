@@ -134,17 +134,24 @@ print("Simulation started")
 
 kr10_1 = threading.Thread(target = unscrew_bolts, args = ({
     "id" : "KR10_1",
-    "bolt_order" : [1, 2, 3, 4, 5, 6]
+    "bolt_order" : [1, 2]
 },))
 
 kr10_2 = threading.Thread(target = unscrew_bolts, args = ({
     "id" : "KR10_2",
-    "bolt_order" : [12, 11, 10, 9, 8, 7]
+    "bolt_order" : [12, 11]
 },))
 
 
 sim.startSimulation()
 
+sim.setObjectPosition(sim.getObject("/battery"), [-5, 0, 0])
+move_to_smooth(sim.getObject("/battery"), [0, 0, 0], 4, delta = False)
+
+kr10_1.start()
+kr10_2.start()
+
+"""
 sim.setObjectParent(sim.getObject("/camera_topdown"), sim.getObject("/battery"))
 sim.setObjectPosition(sim.getObject("/battery"), [-5, 0, 0])
 
@@ -164,9 +171,14 @@ sim.wait(15)
 sim.adjustView(0, sim.getObject("/camera_topdown"), 64)
 sim.wait(6)
 sim.adjustView(0, sim.getObject("/camera_long"), 64)
+"""
 
 kr10_1.join()
 kr10_2.join()
+
+# All bolts are removed at this point
+
+move_to_smooth(sim.getObject("/battery/upper_housing"), [0, 0, 1.5], 4, delta = True)
 
 sim.stopSimulation()
 
