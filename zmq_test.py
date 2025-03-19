@@ -91,15 +91,16 @@ def unscrew_bolts(ik_controller, params):
         raise
                 
 def move_to_smooth(obj_handle, end_position, duration, delta = False):
-    if duration <= 0:
-        raise RuntimeError("move_to_smooth: duration <= 0")
-
     pos = sim.getObjectPosition(obj_handle)
     goal = [end_position[0], end_position[1], end_position[2]]
     if delta:
         goal[0] += pos[0];
         goal[1] += pos[1];
         goal[2] += pos[2];
+    
+    if duration <= 0:
+        sim.setObjectPosition(obj_handle, goal)
+        return
     
     dx = (goal[0] - pos[0])
     dy = (goal[1] - pos[1])
@@ -188,14 +189,14 @@ sim.startSimulation()
 
 sim.adjustView(0, sim.getObject("/camera_topdown"), 64)
 sim.setObjectParent(sim.getObject("/camera_topdown"), sim.getObject("/battery"))
-sim.setObjectPosition(sim.getObject("/battery"), [-5, 0, 0])
-move_to_smooth(sim.getObject("/battery"), [0, 0, 0], 4, delta = False)
+move_to_smooth(sim.getObject("/battery"), [-5, 0, 0], 0, delta = True)
+move_to_smooth(sim.getObject("/battery"), [5, 0, 0], 4, delta = True)
 
 kr10_1_task.start()
 kr10_2_task.start()
 
-kr10_1_cmd.put({"cmd" : "unscrew", "params" : {"bolt_order" : [1, 2]}})
-kr10_2_cmd.put({"cmd" : "unscrew", "params" : {"bolt_order" : [12, 11]}})
+kr10_1_cmd.put({"cmd" : "unscrew", "params" : {"bolt_order" : [1, 2, 3, 4, 5, 6]}})
+kr10_2_cmd.put({"cmd" : "unscrew", "params" : {"bolt_order" : [12, 11, 10, 9, 8, 7]}})
 
 sim.wait(1)
 sim.adjustView(0, sim.getObject("/camera_closein"), 64)
@@ -227,12 +228,12 @@ kr10_2_cmd.join()
 
 sim.wait(4)
 
-move_to_smooth(sim.getObject("/battery/upper_housing"), [0, 0, 0.4], 4, delta = True)
+sim.adjustView(0, sim.getObject("/camera_long"), 64)
+move_to_smooth(sim.getObject("/battery/upper_housing"), [0, 0, 0.3], 4, delta = True)
+sim.wait(3)
 sim.setObjectParent(sim.getObject("/battery/upper_housing"), -1)
 sim.setObjectParent(sim.getObject("/camera_topdown"), -1)
 move_to_smooth(sim.getObject("/battery"), [5, 0, 0], 4, delta = True)
-
-sim.wait(4)
 
 sim.stopSimulation()
 sim.adjustView(0, sim.getObject("/DefaultCamera"), 64)
