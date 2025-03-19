@@ -1,31 +1,30 @@
 import threading
 import math
+import queue
 
 from time import sleep
 from coppeliasim_zmqremoteapi_client import RemoteAPIClient
 
 # Using KR10_and_battery_multi.ttt
 
-def unscrew_bolts(params):
+def unscrew_bolts(ik_controller, params):
     import controller
+
+    kr10 = ik_controller
     
     client = RemoteAPIClient()
     sim = client.require('sim')
     simIK = client.require('simIK')
     
     try:
-        kr10 = controller.generic_ik(sim, simIK, False, params["id"])
-        
         kr10.reset_target()
         
         default_pos = sim.getObjectPosition(kr10.get_target())
         default_orient = sim.getObjectOrientation(kr10.get_target())
         # Distance above the bolt before it couples 
-        bolt_offset = 0.3
+        bolt_offset = 0.35
         # Rotational speed of the end effector (rad/s)
         radians_per_second = math.pi
-        
-        #sim.setStepping(True)
         
         def unscrew_bolt():
             # How far the bolt should be unscrewed before trying to move it
@@ -54,8 +53,6 @@ def unscrew_bolts(params):
                 # Move robot upwards while unscrewing
                 sim.setObjectPosition(kr10.get_target(), target_position)
                 kr10.update_ik(constrained = False)
-                
-                #sim.step()
                 
             sim.setJointTargetVelocity(kr10.get_joint_handle(5), 0)
     
@@ -89,7 +86,7 @@ def unscrew_bolts(params):
             
         sim.setStepping(False)
     except:
-        print("Thread failed")
+        print("Action failed")
         raise
                 
 def move_to_smooth(obj_handle, end_position, duration, delta = False):
@@ -124,22 +121,92 @@ def move_to_smooth(obj_handle, end_position, duration, delta = False):
         
     sim.setStepping(False)    
 
+def corner_grab(ik_controller, params):
+    kr10 = ik_controller
+    client = RemoteAPIClient()
+    sim = client.require('sim')
+    simIK = client.require('simIK')
+    
+    try:
+        kr10.reset_target()
+        
+        grab = kr10.get_child_object("corner_grab")
+        grab_pos = sim.getObjectPosition(grab)
+        grab_orient = sim.getObjectOrientation(grab)
+        
+        kr10.move_to([grab_pos[0], grab_pos[1], grab_pos[2] + 0.3], grab_orient)
+        kr10.move_to(grab_pos, grab_orient)
+        
+        kr10.reset_target()
+        
+        sim.setObjectParent(kr10.get_target(), sim.getObject("/battery/upper_housing"))
+    except:
+        print("Action failed")
+        raise
+
+def task(params):
+    import controller
+    
+    client = RemoteAPIClient()
+    sim = client.require('sim')
+    simIK = client.require('simIK')
+    
+    queue = params["queue"]
+    terminate = False
+    kr10 = controller.generic_ik(sim, simIK, False, params["id"])
+    
+    while not terminate and sim.getSimulationState() != sim.simulation_stopped:
+        try:
+            command = queue.get_nowait()
+            
+            print(f"{params["id"]} -> {command["cmd"]}")
+            
+            if command["cmd"] == "kill":
+                terminate = True
+            elif command["cmd"] == "unscrew":
+                pass
+                unscrew_bolts(kr10, command["params"])
+                
+            print("Finished")
+            queue.task_done()
+        except:
+            # default behaviour
+            sleep(1)
+    
 client = RemoteAPIClient()
 sim = client.require('sim')
 
-#sim.adjustView(0, sim.getObject("/camera"), 64)
-#sim.adjustView(0, sim.getObject("/DefaultCamera"), 64)
-
 print("Simulation started")
 
-kr10_1 = threading.Thread(target = unscrew_bolts, args = ({
+kr10_1_cmd = queue.Queue(maxsize = 0)
+kr10_1_test = threading.Thread(target = task, args = ({"queue" : kr10_1_cmd, "id" : "KR10_1"},))
+
+kr10_2_cmd = queue.Queue(maxsize = 0)
+kr10_2_test = threading.Thread(target = task, args = ({"queue" : kr10_2_cmd, "id" : "KR10_2"},))
+
+sim.startSimulation()
+
+kr10_1_test.start()
+kr10_2_test.start()
+
+kr10_1_cmd.put({"cmd" : "unscrew", "params" : {"bolt_order" : [1, 2]}})
+kr10_1_cmd.join()
+
+"""
+kr10_1_unscrew = threading.Thread(target = unscrew_bolts, args = ({
     "id" : "KR10_1",
     "bolt_order" : [1, 2]
 },))
+kr10_1_grab = threading.Thread(target = corner_grab, args = ({
+    "id" : "KR10_1"
+},))
 
-kr10_2 = threading.Thread(target = unscrew_bolts, args = ({
+kr10_2_unscrew = threading.Thread(target = unscrew_bolts, args = ({
     "id" : "KR10_2",
     "bolt_order" : [12, 11]
+},))
+kr10_2_grab = threading.Thread(target = corner_grab, args = ({
+    "id" : "KR10_2"
 },))
 
 
@@ -150,8 +217,8 @@ sim.setObjectParent(sim.getObject("/camera_topdown"), sim.getObject("/battery"))
 sim.setObjectPosition(sim.getObject("/battery"), [-5, 0, 0])
 move_to_smooth(sim.getObject("/battery"), [0, 0, 0], 4, delta = False)
 
-kr10_1.start()
-kr10_2.start()
+kr10_1_unscrew.start()
+kr10_2_unscrew.start()
 
 sim.wait(1)
 sim.adjustView(0, sim.getObject("/camera_closein"), 64)
@@ -164,8 +231,8 @@ sim.adjustView(0, sim.getObject("/camera_long"), 64)
 sim.wait(6)
 sim.adjustView(0, sim.getObject("/camera_topdown"), 64)
 
-kr10_1.join()
-kr10_2.join()
+kr10_1_unscrew.join()
+kr10_2_unscrew.join()
 
 # All bolts are removed at this point
 
@@ -176,6 +243,17 @@ for i in range(1, 9):
     move_to_smooth(sim.getObject(f"/battery/cell{i}"), [0, 0, 0.5], 0.25, delta = True)
 
 sim.wait(4)
+
+kr10_1_grab.start()
+kr10_2_grab.start()
+
+kr10_1_grab.join()
+kr10_2_grab.join()
+
+move_to_smooth(sim.getObject("/battery/upper_housing"), [0, 0, 0.3], 4, delta = True)
+
+sim.wait(1)
+"""
 
 sim.stopSimulation()
 
